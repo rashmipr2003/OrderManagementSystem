@@ -1,15 +1,18 @@
 package com.rabbitmq.ordermanagement.services;
 
 import com.rabbitmq.ordermanagement.data.dto.OrderDTO;
+import com.rabbitmq.ordermanagement.data.dto.OrderMessage;
 import com.rabbitmq.ordermanagement.data.entities.OrderEntity;
 import com.rabbitmq.ordermanagement.data.repository.OrderRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
-public class OrderService {
+@RequiredArgsConstructor
+public class Producer {
 
     @Autowired
     private RabbitTemplate rabbitTemplate;
@@ -17,7 +20,8 @@ public class OrderService {
     @Autowired
     private OrderRepository orderRepository;
 
-    @Value("${rabbitmq.queue.name}")
+    @Value("ordersQueue")
+   // @Value("${rabbitmq.queue.name}")
     private String queueName;
 
     public OrderEntity createOrder(OrderDTO orderDTO){
@@ -29,8 +33,16 @@ public class OrderService {
         order.setStatus("PENDING");
 
         orderRepository.save(order);
-        rabbitTemplate.convertAndSend(queueName,order);
+        // Convert OrderEntity to OrderMessage (DTO)
+        OrderMessage orderMessage = new OrderMessage();
+        orderMessage.setCustomerName(order.getCustomerName());
+        orderMessage.setItems(order.getItems());
+        orderMessage.setTotalPrice(order.getTotalPrice());
+        orderMessage.setStatus(order.getStatus());
 
+        rabbitTemplate.convertAndSend(queueName, orderMessage);
+
+        System.out.println("Message sent to RabbitMQ: " + orderMessage);
         return order;
     }
 }
